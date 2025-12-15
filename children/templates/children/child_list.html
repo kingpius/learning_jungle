@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Children</title>
+</head>
+<body>
+    <section>
+        <h1>Your Children</h1>
+        <p>MVP list view so parents can verify ownership quickly.</p>
+
+        <a href="{% url 'children:create' %}">Add Child Profile</a>
+
+        <ul>
+            {% for child in children %}
+                <li>
+                    <strong>{{ child.first_name }}</strong> —
+                    Age {{ child.age }}, Year {{ child.year_group }},
+                    School: {{ child.school_name }}
+                    <a href="{% url 'children:update' child.pk %}">Edit</a>
+                    <a href="{% url 'children:delete' child.pk %}">Delete</a>
+                </li>
+            {% empty %}
+                <li>No child profiles yet.</li>
+            {% endfor %}
+        </ul>
+    </section>
+</body>
+</html>

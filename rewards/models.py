@@ -28,4 +28,4 @@ class TreasureChest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Treasure Chest for {self.child.name}"
+        return f"Treasure Chest for {self.child.first_name}"

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Child Profile</title>
+</head>
+<body>
+    <h1>Delete {{ object.first_name }}?</h1>
+    <p>This permanently removes the child profile.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Yes, delete</button>
+        <a href="{% url 'children:list' %}">Cancel</a>
+    </form>
+</body>
+</html>
