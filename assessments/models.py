@@ -16,6 +16,11 @@ class DiagnosticTest(models.Model):
         ENGLISH = "english", "English"
         SCIENCE = "science", "Science"
 
+    class Rank(models.TextChoices):
+        BRONZE = "bronze", "Bronze"
+        SILVER = "silver", "Silver"
+        GOLD = "gold", "Gold"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     child = models.ForeignKey(
         Child,
@@ -42,6 +47,13 @@ class DiagnosticTest(models.Model):
     )
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
+    rank = models.CharField(
+        max_length=10,
+        choices=Rank.choices,
+        null=True,
+        blank=True,
+        help_text="Assigned once upon completion",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

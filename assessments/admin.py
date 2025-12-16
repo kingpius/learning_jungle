@@ -11,11 +11,12 @@ class DiagnosticTestAdmin(admin.ModelAdmin):
         "total_questions",
         "correct_answers",
         "score_percentage",
+        "rank",
         "is_completed",
         "completed_at",
         "created_at",
     )
-    list_filter = ("subject", "is_completed")
+    list_filter = ("subject", "is_completed", "rank")
     search_fields = ("child__first_name", "child__parent__email")
 
 
