@@ -1,25 +1,21 @@
 from django.dispatch import receiver
-from django.db.models.signals import post_save
-from .models import TestAttempt
-from rewards.models import TreasureChest
 from django.utils import timezone
 
-@receiver(post_save, sender=TestAttempt)
-def unlock_treasure_chest_on_first_test(sender, instance, created, **kwargs):
-    if not created:
-        return
+from rewards.models import TreasureChest
 
-    if not instance.completed:
-        return
+from .events import diagnostic_test_completed
 
+
+@receiver(diagnostic_test_completed)
+def unlock_treasure_chest_on_completion(sender, diagnostic_test, **kwargs):
     try:
-        chest = TreasureChest.objects.get(child=instance.child)
+        chest = TreasureChest.objects.get(child=diagnostic_test.child)
     except TreasureChest.DoesNotExist:
         return
 
     if not chest.is_locked:
-        return  # idempotency
+        return  # Already unlocked elsewhere.
 
     chest.is_locked = False
     chest.unlocked_at = timezone.now()
-    chest.save()
+    chest.save(update_fields=["is_locked", "unlocked_at"])
