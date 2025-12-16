@@ -77,6 +77,7 @@ def create_diagnostic_test(request, child_id):
         "subject": diagnostic_test.subject,
         "score_percentage": str(diagnostic_test.score_percentage),
         "is_completed": diagnostic_test.is_completed,
+        "rank": diagnostic_test.rank,
     }
     return JsonResponse(response, status=201)
 
@@ -96,5 +97,6 @@ def complete_diagnostic_test(request, test_id):
         if diagnostic_test.completed_at
         else None,
         "score_percentage": str(diagnostic_test.score_percentage),
+        "rank": diagnostic_test.rank,
     }
     return JsonResponse(response, status=200)

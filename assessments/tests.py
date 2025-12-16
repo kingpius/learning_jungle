@@ -37,6 +37,15 @@ class DiagnosticTestDomainTests(TestCase):
             year_group=1,
         )
 
+    def _create_test_with_score(self, correct_answers):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=100,
+            correct_answers=correct_answers,
+        )
+        return test
+
     def test_diagnostic_test_persists_and_links_to_child(self):
         test = DiagnosticTest.objects.create(
             child=self.child,
@@ -66,6 +75,39 @@ class DiagnosticTestDomainTests(TestCase):
 
         self.assertFalse(second_call)
         self.assertTrue(test.is_completed)
+
+    def test_rank_threshold_boundaries(self):
+        cases = [
+            (40, DiagnosticTest.Rank.BRONZE),
+            (50, DiagnosticTest.Rank.BRONZE),
+            (51, DiagnosticTest.Rank.SILVER),
+            (70, DiagnosticTest.Rank.SILVER),
+            (71, DiagnosticTest.Rank.GOLD),
+            (100, DiagnosticTest.Rank.GOLD),
+        ]
+        for correct, expected_rank in cases:
+            with self.subTest(correct=correct):
+                test = self._create_test_with_score(correct)
+                test.complete()
+                test.refresh_from_db()
+                self.assertEqual(test.rank, expected_rank)
+
+    def test_rank_not_assigned_below_threshold(self):
+        test = self._create_test_with_score(30)
+        test.complete()
+        test.refresh_from_db()
+        self.assertIsNone(test.rank)
+
+    def test_rank_does_not_change_after_completion(self):
+        test = self._create_test_with_score(40)
+        test.complete()
+        test.refresh_from_db()
+        original_rank = test.rank
+
+        test.correct_answers = 90
+        test.save()
+        test.refresh_from_db()
+        self.assertEqual(test.rank, original_rank)
 
     def test_completion_signal_unlocks_treasure_chest_once(self):
         chest = TreasureChest.objects.create(
@@ -120,6 +162,7 @@ class DiagnosticTestDomainTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(DiagnosticTest.objects.count(), 1)
         self.assertEqual(DiagnosticQuestion.objects.count(), 1)
+        self.assertIsNone(response.json().get("rank"))
 
     def test_cross_parent_access_to_completion_is_denied(self):
         test = DiagnosticTest.objects.create(
@@ -261,3 +304,19 @@ class DiagnosticTestDomainTests(TestCase):
         )
         self.assertEqual(response.status_code, 503)
         self.assertEqual(DiagnosticTest.objects.count(), 0)
+
+    def test_complete_endpoint_returns_rank(self):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.ENGLISH,
+            total_questions=100,
+            correct_answers=90,
+        )
+        self.client.login(username="parent", password="pass1234")
+        url = reverse(
+            "assessments:complete_diagnostic_test",
+            kwargs={"test_id": test.id},
+        )
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get("rank"), DiagnosticTest.Rank.GOLD)
