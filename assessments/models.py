@@ -93,3 +93,68 @@ class DiagnosticTest(models.Model):
             diagnostic_test=self,
         )
         return True
+
+
+class DiagnosticQuestion(models.Model):
+    class Option(models.TextChoices):
+        A = "A", "Option A"
+        B = "B", "Option B"
+        C = "C", "Option C"
+        D = "D", "Option D"
+
+    test = models.ForeignKey(
+        DiagnosticTest,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    prompt_version = models.CharField(max_length=50)
+    seed = models.CharField(max_length=64)
+    order = models.PositiveIntegerField()
+    question_text = models.TextField()
+    option_a = models.TextField()
+    option_b = models.TextField()
+    option_c = models.TextField()
+    option_d = models.TextField()
+    correct_option = models.CharField(max_length=1, choices=Option.choices)
+    difficulty = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("order",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("test", "order"), name="diagnostic_question_unique_order"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.test_id} - Q{self.order}"
+
+
+class AIRequestLog(models.Model):
+    class Status(models.TextChoices):
+        SUCCESS = "success", "Success"
+        FAILURE = "failure", "Failure"
+
+    test = models.ForeignKey(
+        DiagnosticTest,
+        on_delete=models.CASCADE,
+        related_name="ai_request_logs",
+        null=True,
+        blank=True,
+    )
+    prompt_version = models.CharField(max_length=50)
+    seed = models.CharField(max_length=64)
+    provider = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=Status.choices)
+    error_message = models.TextField(blank=True)
+    prompt_excerpt = models.TextField()
+    response_excerpt = models.TextField(blank=True)
+    latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.prompt_version} ({self.status})"

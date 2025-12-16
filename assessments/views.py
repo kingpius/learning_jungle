@@ -9,6 +9,10 @@ from django.views.decorators.http import require_http_methods
 from children.models import Child
 
 from .models import DiagnosticTest
+from .diagnostics.services import (
+    DiagnosticGenerationError,
+    ensure_maths_questions_for_test,
+)
 
 
 def _payload_from_request(request):
@@ -57,6 +61,16 @@ def create_diagnostic_test(request, child_id):
         return JsonResponse({"error": message}, status=400)
 
     diagnostic_test.save()
+    if diagnostic_test.subject == DiagnosticTest.Subject.MATHS:
+        try:
+            ensure_maths_questions_for_test(diagnostic_test)
+        except ValidationError as exc:
+            diagnostic_test.delete()
+            message = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
+            return JsonResponse({"error": message}, status=400)
+        except DiagnosticGenerationError as exc:
+            diagnostic_test.delete()
+            return JsonResponse({"error": str(exc)}, status=503)
     response = {
         "id": str(diagnostic_test.id),
         "child_id": str(child.id),
