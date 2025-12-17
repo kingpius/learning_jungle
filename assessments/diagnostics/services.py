@@ -6,7 +6,12 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from assessments.models import AIRequestLog, DiagnosticQuestion, DiagnosticTest
+from assessments.models import (
+    AIRequestLog,
+    DiagnosticQuestion,
+    DiagnosticTest,
+    DiagnosticResponse,
+)
 from ai.exceptions import AIProviderError, AIValidationError
 from ai.maths_diagnostic import GenerationResult, compute_seed, generate_maths_mcqs
 from ai.prompts import PROMPT_VERSION, build_maths_prompt
@@ -110,3 +115,77 @@ def _persist_questions(
 
         created = DiagnosticQuestion.objects.bulk_create(payload)
         return created
+
+
+def create_or_resume_maths_test(child) -> DiagnosticTest:
+    """
+    Return an existing incomplete Maths diagnostic or create a new one
+    with generated questions for the child.
+    """
+    if child.diagnostic_tests.filter(
+        subject=DiagnosticTest.Subject.MATHS, is_completed=True
+    ).exists():
+        raise ValidationError("Maths diagnostic already completed for this child.")
+
+    existing = (
+        child.diagnostic_tests.filter(
+            subject=DiagnosticTest.Subject.MATHS, is_completed=False
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if existing:
+        return existing
+
+    total = _get_question_target()
+    test = DiagnosticTest.objects.create(
+        child=child,
+        subject=DiagnosticTest.Subject.MATHS,
+        total_questions=total,
+    )
+    ensure_maths_questions_for_test(test, n_questions=total)
+    return test
+
+
+def record_responses(test: DiagnosticTest, answers: dict[int, str]) -> None:
+    """
+    Persist child selections per question.
+    """
+    valid_ids = set(test.questions.values_list("id", flat=True))
+    for question_id, option in answers.items():
+        if question_id not in valid_ids:
+            continue
+
+        DiagnosticResponse.objects.update_or_create(
+            test=test,
+            question_id=question_id,
+            defaults={"selected_option": option},
+        )
+
+
+def score_test_from_responses(test: DiagnosticTest) -> int:
+    """
+    Calculates correct answers from stored responses and completes the test.
+    Raises ValidationError if not all questions are answered.
+    """
+    if test.is_completed:
+        return test.correct_answers
+
+    questions = list(test.questions.all())
+    responses = {
+        response.question_id: response
+        for response in DiagnosticResponse.objects.filter(test=test)
+    }
+    missing = [q.id for q in questions if q.id not in responses]
+    if missing:
+        raise ValidationError("All questions must be answered before submission.")
+
+    correct = sum(
+        1
+        for question in questions
+        if responses[question.id].selected_option == question.correct_option
+    )
+    test.correct_answers = correct
+    test.save(update_fields=["correct_answers"])
+    test.complete()
+    return correct

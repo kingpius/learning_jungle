@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Learning Jungle Components</title>
+    <link rel="stylesheet" href="{% static 'core/design-system.css' %}">
+</head>
+<body>
+<div class="dsj-shell">
+    <header class="dsj-shell__header">
+        <p class="dsj-eyebrow">Component Library</p>
+        <h1 class="dsj-hero">Reusable Elements</h1>
+        <p class="dsj-copy">Drop these snippets into any Django template after loading the design-system stylesheet.</p>
+    </header>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Screen Shell</h2>
+        <p class="dsj-copy">Wrap primary flows in <code>&lt;div class="dsj-shell"&gt;</code> to apply the gradient background and spacing rhythm. Use <span class="dsj-status-chip dsj-status-chip--info">dsj-eyebrow</span> + <span class="dsj-status-chip dsj-status-chip--unlocked">dsj-hero</span> for headings.</p>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">CTA Buttons</h2>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <button class="dsj-cta" type="button">Start Maths Challenge</button>
+            <button class="dsj-link-button" type="button">Need your grown-up?</button>
+        </div>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Question Options</h2>
+        <ul class="dsj-answer-list">
+            {% for answer in answers %}
+            <li>
+                <label class="dsj-answer{% if answer.selected %} dsj-answer--selected{% endif %}">
+                    <input type="radio" name="question" {% if answer.selected %}checked{% endif %}>
+                    <span class="dsj-answer__letter">{{ answer.letter }}</span>
+                    <span class="dsj-copy">{{ answer.text }}</span>
+                </label>
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="dsj-alert" style="margin-top: 16px;">Please choose one answer to continue.</div>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Treasure & Status</h2>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <span class="dsj-status-chip dsj-status-chip--info">In Progress</span>
+            <span class="dsj-status-chip dsj-status-chip--unlocked">Unlocked</span>
+            <div class="dsj-treasure-card dsj-treasure-card--unlocked">
+                <div class="dsj-treasure-icon"></div>
+                <p class="dsj-copy">Treasure chest unlocked! Show this to your grown-up.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Progress Steps</h2>
+        <ol class="dsj-progress-steps">
+            <li>Answer quick maths questions</li>
+            <li>Earn Bronze, Silver, or Gold</li>
+            <li>Unlock your treasure chest reward</li>
+        </ol>
+        <div class="dsj-wiggle-divider" aria-hidden="true" style="margin-top: 20px;"></div>
+    </section>
+
+    <a class="dsj-cta" href="{% url 'core:design-system' %}">Back to Design System</a>
+</div>
+</body>
+</html>

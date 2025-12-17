@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Start Challenge - {{ child.first_name }}{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Ready, {{ child.first_name }}?</p>
+    <h1 class="dsj-hero">
+        {% if test and not test.is_completed %}
+            Continue your Maths Challenge
+        {% else %}
+            Start your Maths Challenge
+        {% endif %}
+    </h1>
+    <p class="dsj-copy">Takes about 10 minutes.</p>
+  </header>
+
+  <section class="dsj-card">
+    <ol class="dsj-progress-steps">
+      <li>Answer some fun maths questions.</li>
+      <li>See if you earned a Bronze, Silver, or Gold rank.</li>
+      <li>Check if you've unlocked your treasure chest!</li>
+    </ol>
+  </section>
+
+  <form method="post">
+    {% csrf_token %}
+    <button class="dsj-cta" type="submit">
+        {% if test and not test.is_completed %}Continue Challenge{% else %}Start Challenge{% endif %}
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Learning Jungle Design System</title>
+    <link rel="stylesheet" href="{% static 'core/design-system.css' %}">
+    <style>
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+        .palette-swatch {
+            border-radius: var(--radius-card);
+            padding: 16px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+        .palette-swatch .swatch {
+            height: 60px;
+            border-radius: var(--radius-card);
+            margin-bottom: 12px;
+        }
+        .principles {
+            list-style: disc;
+            padding-left: 20px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="dsj-shell">
+    <header class="dsj-shell__header">
+        <p class="dsj-eyebrow">Learning Jungle</p>
+        <h1 class="dsj-hero">Design System Overview</h1>
+        <p class="dsj-copy">Palette, typography, and guardrails inspired by the children's artwork.</p>
+    </header>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Palette Tokens</h2>
+        <div class="palette-grid">
+            {% for name, hex, usage in palette %}
+            <div class="palette-swatch">
+                <div class="swatch" style="background: {{ hex }};"></div>
+                <strong>{{ name }}</strong>
+                <p class="dsj-copy" style="font-size: 16px; margin-top: 4px;">
+                    {{ hex }} · {{ usage }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Principles</h2>
+        <ul class="principles">
+            {% for principle in principles %}
+            <li class="dsj-copy">{{ principle }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Typography Stack</h2>
+        <p class="dsj-copy"><strong>Display:</strong> Baloo 2 · 36/28/22 px · 120% line-height</p>
+        <p class="dsj-copy"><strong>Body:</strong> Nunito · 18 px copy · 16 px helper</p>
+        <div class="dsj-wiggle-divider" aria-hidden="true" style="margin: 20px 0;"></div>
+        <p class="dsj-copy">Use color blocks (Emerald/Violet) for emphasis instead of italics. Keep copy under 80 characters per line.</p>
+    </section>
+
+    <section class="dsj-card">
+        <h2 class="dsj-hero" style="font-size: 24px;">Layout & Spacing</h2>
+        <p class="dsj-copy">8 px base grid · 24 px card padding · 32 px section spacing.</p>
+        <p class="dsj-copy">Shell background uses the green gradient from the inspiration art. Only one CTA per screen; treasure unlock is the emotional high point.</p>
+    </section>
+
+    <a class="dsj-cta" href="{% url 'core:design-system-elements' %}">View Component Library</a>
+</div>
+</body>
+</html>

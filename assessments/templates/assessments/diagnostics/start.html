@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Diagnostic Test • {{ child.first_name }}</title>
+    <link rel="stylesheet" href="{% static 'core/design-system.css' %}">
+</head>
+<body class="dsj-shell">
+    <header class="dsj-shell__header">
+        <p class="dsj-eyebrow">Ready, {{ child.first_name }}?</p>
+        <h1 class="dsj-hero">Start your Maths Challenge</h1>
+        <p class="dsj-copy">Takes about 10 minutes. One attempt only.</p>
+    </header>
+
+    <section class="dsj-card">
+        {% if pending_test %}
+            <h2>Pick up where you left off</h2>
+            <p class="dsj-copy">You started a Maths diagnostic on {{ pending_test.created_at|date:"M j, Y H:i" }}.</p>
+            <form method="post">
+                {% csrf_token %}
+                <button class="dsj-cta" type="submit">Resume Test</button>
+            </form>
+            <p class="dsj-copy" style="margin-top:12px;">No timer. You can pause and come back.</p>
+        {% elif locked %}
+            <h2>You've finished this challenge</h2>
+            <p class="dsj-copy">You already completed your Maths diagnostic. View your results below.</p>
+            <a class="dsj-cta" href="{% url 'assessments:diagnostic_results' last_completed.id %}">View Results</a>
+            <p class="dsj-copy" style="margin-top:12px;">Retakes are disabled for now.</p>
+        {% else %}
+            <ol class="dsj-progress-steps">
+                <li>Answer quick questions</li>
+                <li>Earn Bronze, Silver, or Gold</li>
+                <li>Unlock your treasure chest</li>
+            </ol>
+            
+            <form method="post">
+                {% csrf_token %}
+                <button class="dsj-cta" type="submit">Start Challenge</button>
+            </form>
+            <p class="dsj-copy" style="margin-top:12px;">No timer. You can pause and come back.</p>
+        {% endif %}
+    </section>
+
+    <div class="dsj-wiggle-divider" aria-hidden="true"></div>
+
+    <button class="dsj-link-button" type="button">Need your grown-up?</button>
+
+    {% if last_completed %}
+        <section class="dsj-card">
+            <h3>Last score snapshot</h3>
+            <p><strong>Score:</strong> {{ last_completed.score_percentage }}%</p>
+            <p><strong>Rank:</strong> {{ last_completed.rank|default:"Not ranked" }}</p>
+            {% if last_completed.completed_at %}
+                <p>Completed {{ last_completed.completed_at|date:"M j, Y H:i" }}</p>
+            {% endif %}
+        </section>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Results • {{ child.first_name }}</title>
+    <link rel="stylesheet" href="{% static 'core/design-system.css' %}">
+    <style>
+        .correct { color: #1DA97A; font-weight: 600; }
+        .incorrect { color: #b02a37; font-weight: 600; }
+        table th, table td { border-bottom: 1px solid #eee; padding: 8px 4px; }
+    </style>
+</head>
+<body class="dsj-shell">
+    <header class="dsj-shell__header">
+        <h1 class="dsj-hero">Great job, {{ child.first_name }}!</h1>
+        <p class="dsj-copy">
+            {% if test.rank %}
+                You earned <span class="dsj-status-chip dsj-status-chip--info">{{ test.get_rank_display }}</span>!
+            {% else %}
+                Challenge Complete!
+            {% endif %}
+        </p>
+        <p class="dsj-copy">You scored {{ test.score_percentage|floatformat:0 }}%</p>
+    </header>
+
+    <!-- Treasure Chest State -->
+    {% if treasure_chest and not treasure_chest.is_locked %}
+    <section class="dsj-treasure-card dsj-treasure-card--unlocked">
+        <div class="dsj-treasure-icon"></div>
+        <p class="dsj-copy">Treasure chest unlocked! Show this to your grown-up.</p>
+    </section>
+    {% else %}
+    <section class="dsj-treasure-card">
+        <div class="dsj-treasure-icon"></div>
+        <p class="dsj-copy">Keep practicing to unlock the treasure! Show this to your grown-up to unlock.</p>
+    </section>
+    {% endif %}
+
+    <div class="dsj-wiggle-divider" aria-hidden="true"></div>
+
+    <section class="dsj-card">
+        <h2>Answer Review</h2>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">#</th>
+                    <th style="text-align:left;">Question</th>
+                    <th style="text-align:left;">Your Answer</th>
+                    <th style="text-align:left;">Correct Answer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in responses %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ response.question.question_text }}</td>
+                        <td class="{% if response.selected_option == response.question.correct_option %}correct{% else %}incorrect{% endif %}">
+                            {{ response.selected_option }}. {{ response.selected_text }}
+                        </td>
+                        <td>{{ response.question.correct_option }}. {{ response.correct_text }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">No responses recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <footer>
+        <a class="dsj-cta" href="{% url 'core:home' %}">Back to Home</a>
+    </footer>
+</body>
+</html>
