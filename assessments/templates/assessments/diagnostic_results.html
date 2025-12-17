@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Results - {{ test.child.first_name }}{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Great work, {{ test.child.first_name }}!</p>
+    <h1 class="dsj-hero">Here are your results</h1>
+  </header>
+
+  <section class="dsj-card" style="text-align: center;">
+    <p class="dsj-copy">Your Score</p>
+    <h2 class="dsj-hero" style="font-size: 48px; margin-bottom: 16px;">{{ test.score_percentage|floatformat:0 }}%</h2>
+    <p class="dsj-copy"><strong>Score:</strong> {{ test.correct_answers }} / {{ test.total_questions }}</p>
+    
+    <div class="dsj-wiggle-divider" aria-hidden="true" style="margin: 24px 0;"></div>
+
+    <p class="dsj-copy">Your Rank</p>
+    {% if test.rank %}
+      <p class="dsj-hero" style="color: var(--color-lilac-glow); text-transform: capitalize;">{{ test.rank }}</p>
+      <p class="dsj-copy"><strong>Rank:</strong> {{ test.rank|capfirst }}</p>
+    {% else %}
+      <p class="dsj-copy" style="color: var(--color-tree-trunk);">No rank this time. Keep trying!</p>
+      <p class="dsj-copy"><strong>Rank:</strong> Not assigned</p>
+    {% endif %}
+  </section>
+
+  {% if treasure_chest %}
+  <section class="dsj-treasure-card {% if treasure_chest.is_locked %}dsj-treasure-card--locked{% else %}dsj-treasure-card--unlocked{% endif %}">
+    <div class="dsj-treasure-icon"></div>
+    <p class="dsj-copy" style="margin-bottom: 8px;">{{ treasure_chest.reward_description }}</p>
+    {% if treasure_chest.is_locked %}
+      <span class="dsj-status-chip dsj-status-chip--info">Still Locked</span>
+    {% else %}
+      <span class="dsj-status-chip dsj-status-chip--unlocked">Unlocked!</span>
+    {% endif %}
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

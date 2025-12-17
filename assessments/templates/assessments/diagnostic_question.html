@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Maths Challenge - {{ test.child.first_name }}{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Questions ({{ questions|length }})</p>
+    <h1 class="dsj-hero">Maths Challenge</h1>
+    {% if is_read_only %}
+      <p class="dsj-copy">This test is read-only because it has already been completed.</p>
+    {% endif %}
+  </header>
+
+  <form method="post">
+    {% csrf_token %}
+    <section class="dsj-card">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="dsj-alert" style="margin-bottom: 24px;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      {% for question in questions %}
+        <div style="margin-bottom: 32px;">
+          <p class="dsj-copy" style="font-weight: 600; margin-bottom: 16px;">{{ forloop.counter }}. {{ question.question_text }}</p>
+          <ul class="dsj-answer-list">
+            {% with selected_option=question.selected_option %}
+              <li>
+                <label class="dsj-answer {% if selected_option == 'A' %}dsj-answer--selected{% endif %}">
+                  <input type="radio" name="answer_{{ question.id }}" value="A" {% if selected_option == 'A' %}checked{% endif %} {% if test.is_completed %}disabled{% endif %}>
+                  <span class="dsj-answer__letter">A</span>
+                  <span class="dsj-copy">{{ question.option_a }}</span>
+                </label>
+              </li>
+              <li>
+                <label class="dsj-answer {% if selected_option == 'B' %}dsj-answer--selected{% endif %}">
+                  <input type="radio" name="answer_{{ question.id }}" value="B" {% if selected_option == 'B' %}checked{% endif %} {% if test.is_completed %}disabled{% endif %}>
+                  <span class="dsj-answer__letter">B</span>
+                  <span class="dsj-copy">{{ question.option_b }}</span>
+                </label>
+              </li>
+              <li>
+                <label class="dsj-answer {% if selected_option == 'C' %}dsj-answer--selected{% endif %}">
+                  <input type="radio" name="answer_{{ question.id }}" value="C" {% if selected_option == 'C' %}checked{% endif %} {% if test.is_completed %}disabled{% endif %}>
+                  <span class="dsj-answer__letter">C</span>
+                  <span class="dsj-copy">{{ question.option_c }}</span>
+                </label>
+              </li>
+              <li>
+                <label class="dsj-answer {% if selected_option == 'D' %}dsj-answer--selected{% endif %}">
+                  <input type="radio" name="answer_{{ question.id }}" value="D" {% if selected_option == 'D' %}checked{% endif %} {% if test.is_completed %}disabled{% endif %}>
+                  <span class="dsj-answer__letter">D</span>
+                  <span class="dsj-copy">{{ question.option_d }}</span>
+                </label>
+              </li>
+            {% endwith %}
+          </ul>
+        </div>
+      {% endfor %}
+    </section>
+
+    {% if test.is_completed %}
+        <a href="{% url 'assessments:diagnostic_results' test_id=test.id %}" class="dsj-cta" style="text-decoration: none;">View Results</a>
+    {% else %}
+        <button class="dsj-cta" type="submit" name="action" value="submit">Submit My Answers</button>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

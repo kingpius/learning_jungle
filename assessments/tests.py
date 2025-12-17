@@ -13,7 +13,12 @@ from children.models import Child
 from rewards.models import TreasureChest
 
 from .diagnostics.services import DiagnosticGenerationError, ensure_maths_questions_for_test
-from .models import AIRequestLog, DiagnosticQuestion, DiagnosticTest
+from .models import (
+    AIRequestLog,
+    DiagnosticQuestion,
+    DiagnosticTest,
+    DiagnosticResponse,
+)
 
 
 class DiagnosticTestDomainTests(TestCase):
@@ -156,12 +161,13 @@ class DiagnosticTestDomainTests(TestCase):
             {
                 "subject": DiagnosticTest.Subject.MATHS,
                 "total_questions": 8,
-                "correct_answers": 6,
             },
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(DiagnosticTest.objects.count(), 1)
         self.assertEqual(DiagnosticQuestion.objects.count(), 1)
+        test = DiagnosticTest.objects.first()
+        self.assertEqual(test.correct_answers, 0)
         self.assertIsNone(response.json().get("rank"))
 
     def test_cross_parent_access_to_completion_is_denied(self):
@@ -308,9 +314,27 @@ class DiagnosticTestDomainTests(TestCase):
     def test_complete_endpoint_returns_rank(self):
         test = DiagnosticTest.objects.create(
             child=self.child,
-            subject=DiagnosticTest.Subject.ENGLISH,
-            total_questions=100,
-            correct_answers=90,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=0,
+        )
+        question = DiagnosticQuestion.objects.create(
+            test=test,
+            prompt_version="v1",
+            seed="seed",
+            order=1,
+            question_text="1+1?",
+            option_a="2",
+            option_b="3",
+            option_c="4",
+            option_d="5",
+            correct_option="A",
+            difficulty="easy",
+        )
+        DiagnosticResponse.objects.create(
+            test=test,
+            question=question,
+            selected_option="A",
         )
         self.client.login(username="parent", password="pass1234")
         url = reverse(
@@ -320,3 +344,237 @@ class DiagnosticTestDomainTests(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get("rank"), DiagnosticTest.Rank.GOLD)
+
+    @mock.patch("ai.maths_diagnostic.call_llm")
+    def test_create_endpoint_rejects_after_completion(self, mock_call_llm):
+        mock_call_llm.return_value = json.dumps(
+            {
+                "questions": [
+                    {
+                        "question_text": "2 + 3 = ?",
+                        "options": ["4", "5", "6", "7"],
+                        "correct_answer_index": 1,
+                        "difficulty": "easy",
+                    }
+                ]
+            }
+        )
+        DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=10,
+            correct_answers=10,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        self.client.login(username="parent", password="pass1234")
+        url = reverse(
+            "assessments:create_diagnostic_test",
+            kwargs={"child_id": self.child.id},
+        )
+        response = self.client.post(
+            url,
+            {
+                "subject": DiagnosticTest.Subject.MATHS,
+                "total_questions": 8,
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+
+
+class DiagnosticUIViewTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.parent = User.objects.create_user(
+            username="parent-ui",
+            email="parent-ui@example.com",
+            password="pass1234",
+        )
+        self.child = Child.objects.create(
+            parent=self.parent,
+            first_name="Noah",
+            age=7,
+            school_name="UI Primary",
+            year_group=2,
+        )
+        TreasureChest.objects.create(
+            parent=self.parent,
+            child=self.child,
+            reward_description="Story time",
+            reward_value=Decimal("2.00"),
+        )
+
+    def _seed_question(self, test, order=1, correct="A"):
+        return DiagnosticQuestion.objects.create(
+            test=test,
+            prompt_version="test",
+            seed="seed",
+            order=order,
+            question_text=f"{order} + {order}",
+            option_a="2",
+            option_b="3",
+            option_c="4",
+            option_d="5",
+            correct_option=correct,
+            difficulty="easy",
+        )
+
+    @mock.patch("assessments.diagnostics.services.ensure_maths_questions_for_test")
+    def test_start_flow_creates_test_and_redirects(self, mock_generate):
+        def fake_generate(test, n_questions=None):
+            if not test.questions.exists():
+                self._seed_question(test)
+        mock_generate.side_effect = fake_generate
+
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_start", kwargs={"child_id": self.child.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        test = DiagnosticTest.objects.get(child=self.child)
+        self.assertEqual(test.questions.count(), 1)
+
+    def test_question_flow_saves_and_submits_answers(self):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=0,
+        )
+        question = self._seed_question(test, correct="C")
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_questions", kwargs={"test_id": test.id})
+        save_response = self.client.post(
+            url,
+            {
+                f"answer_{question.id}": "C",
+                "action": "save",
+            },
+        )
+        self.assertEqual(save_response.status_code, 200)
+        self.assertTrue(
+            DiagnosticResponse.objects.filter(test=test, question=question).exists()
+        )
+
+        submit_response = self.client.post(
+            url,
+            {
+                f"answer_{question.id}": "C",
+                "action": "submit",
+            },
+        )
+        self.assertEqual(submit_response.status_code, 302)
+        test.refresh_from_db()
+        self.assertTrue(test.is_completed)
+        self.assertEqual(test.correct_answers, 1)
+        results = self.client.get(
+            reverse("assessments:diagnostic_results", kwargs={"test_id": test.id})
+        )
+        self.assertContains(results, "You scored")
+        self.assertContains(results, "Treasure")
+
+    def test_submission_blocked_when_answers_missing(self):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=0,
+        )
+        question = self._seed_question(test)
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_questions", kwargs={"test_id": test.id})
+        response = self.client.post(
+            url,
+            {
+                f"answer_{question.id}": "",
+                "action": "submit",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Please answer all questions")
+
+    def test_results_read_only_for_completed_tests(self):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=1,
+            is_completed=True,
+            completed_at=timezone.now(),
+            rank=DiagnosticTest.Rank.GOLD,
+        )
+        question = self._seed_question(test, correct="A")
+        DiagnosticResponse.objects.create(
+            test=test,
+            question=question,
+            selected_option="A",
+        )
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_questions", kwargs={"test_id": test.id})
+        response = self.client.get(url)
+        self.assertRedirects(
+            response, reverse("assessments:diagnostic_results", kwargs={"test_id": test.id})
+        )
+        submit_response = self.client.post(
+            url,
+            {
+                f"answer_{question.id}": "B",
+                "action": "submit",
+            },
+        )
+        self.assertRedirects(
+            submit_response,
+            reverse("assessments:diagnostic_results", kwargs={"test_id": test.id}),
+        )
+
+    def test_submit_uses_saved_responses_when_resuming(self):
+        test = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=0,
+        )
+        question = self._seed_question(test, correct="D")
+        DiagnosticResponse.objects.create(
+            test=test,
+            question=question,
+            selected_option="D",
+        )
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_questions", kwargs={"test_id": test.id})
+        response = self.client.post(
+            url,
+            {
+                "action": "submit",
+            },
+        )
+        self.assertRedirects(
+            response,
+            reverse("assessments:diagnostic_results", kwargs={"test_id": test.id}),
+        )
+        test.refresh_from_db()
+        self.assertTrue(test.is_completed)
+        self.assertEqual(test.correct_answers, 1)
+
+    def test_start_redirects_to_results_when_completed(self):
+        completed = DiagnosticTest.objects.create(
+            child=self.child,
+            subject=DiagnosticTest.Subject.MATHS,
+            total_questions=1,
+            correct_answers=1,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        self._seed_question(completed)
+        DiagnosticResponse.objects.create(
+            test=completed,
+            question=completed.questions.first(),
+            selected_option="A",
+        )
+        self.client.login(username="parent-ui", password="pass1234")
+        url = reverse("assessments:diagnostic_start", kwargs={"child_id": self.child.id})
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            reverse("assessments:diagnostic_results", kwargs={"test_id": completed.id}),
+        )
+        self.assertEqual(DiagnosticTest.objects.filter(child=self.child).count(), 1)

@@ -18,8 +18,8 @@ def build_maths_prompt(*, age: int, year_group: int, n_questions: int) -> str:
     - difficulty tag (easy, medium, hard)
 
     Guardrails:
-    - Stay strictly within Year {year_group} expectations.
-    - Prioritize number sense, arithmetic, and problem-solving aligned to UK curriculum.
+    - Stay strictly within Year {year_group} UK National Curriculum expectations.
+    - Focus on age-appropriate number sense, arithmetic (addition, subtraction, multiplication, division), place value, simple fractions/decimals, measurement, shapes/geometry, and word problems within the Year {year_group} syllabus.
     - Avoid trick questions, cultural references, or adult themes.
     - Keep wording concise and age-appropriate.
     - Responses must be valid JSON with a top-level "questions" list.

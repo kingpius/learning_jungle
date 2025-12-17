@@ -1,13 +1,15 @@
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import F, Q
 from django.utils import timezone
 
 from children.models import Child
-from .events import diagnostic_test_completed
+
+from . import events
 
 
 class DiagnosticTest(models.Model):
@@ -23,124 +25,98 @@ class DiagnosticTest(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     child = models.ForeignKey(
-        Child,
-        on_delete=models.CASCADE,
-        related_name="diagnostic_tests",
+        Child, on_delete=models.CASCADE, related_name="diagnostic_tests"
     )
-    subject = models.CharField(max_length=20, choices=Subject.choices)
-    total_questions = models.PositiveIntegerField(
-        validators=[MinValueValidator(1, message="At least one question is required.")]
-    )
-    correct_answers = models.PositiveIntegerField(
-        default=0,
-        validators=[MinValueValidator(0, message="Correct answers cannot be negative.")],
-    )
+    subject = models.CharField(max_length=10, choices=Subject.choices)
+    total_questions = models.PositiveIntegerField(default=10)
+    correct_answers = models.PositiveIntegerField(default=0)
     score_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.00"),
-        validators=[
-            MinValueValidator(Decimal("0.00")),
-            MaxValueValidator(Decimal("100.00")),
-        ],
-        editable=False,
+        max_digits=5, decimal_places=2, default=Decimal("0.00")
+    )
+    rank = models.CharField(
+        max_length=10, choices=Rank.choices, null=True, blank=True
     )
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
-    rank = models.CharField(
-        max_length=10,
-        choices=Rank.choices,
-        null=True,
-        blank=True,
-        help_text="Assigned once upon completion",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ("-created_at",)
-        constraints = [
-            models.CheckConstraint(
-                check=Q(correct_answers__lte=F("total_questions")),
-                name="diagnostic_test_correct_lte_total",
-            ),
-            models.CheckConstraint(
-                check=Q(
-                    Q(is_completed=False, completed_at__isnull=True)
-                    | Q(is_completed=True, completed_at__isnull=False)
-                ),
-                name="diagnostic_test_completion_consistency",
-            ),
-        ]
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.child.first_name} - {self.get_subject_display()} test"
+        return f"Diagnostic for {self.child} - {self.get_subject_display()}"
 
     def save(self, *args, **kwargs):
-        self.score_percentage = self.calculate_score_percentage()
+        if self.total_questions > 0:
+            score = (
+                Decimal(self.correct_answers) / Decimal(self.total_questions)
+            ) * 100
+            self.score_percentage = score.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        else:
+            self.score_percentage = Decimal("0.00")
         super().save(*args, **kwargs)
 
-    def calculate_score_percentage(self) -> Decimal:
-        if not self.total_questions:
-            return Decimal("0.00")
-
-        raw = (Decimal(self.correct_answers) / Decimal(self.total_questions)) * Decimal(
-            "100"
-        )
-        return raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    def complete(self, completed_at=None) -> bool:
-        """
-        Marks the test as completed. Returns True if the completion event
-        occurred, False if it was already complete (idempotent behavior).
-        """
+    def complete(self):
         if self.is_completed:
             return False
 
         self.is_completed = True
-        self.completed_at = completed_at or timezone.now()
-        self.save(update_fields=["is_completed", "completed_at"])
+        self.completed_at = timezone.now()
+        self.save()
 
-        diagnostic_test_completed.send(
-            sender=self.__class__,
-            diagnostic_test=self,
+        events.diagnostic_test_completed.send(
+            sender=self.__class__, diagnostic_test=self
         )
         return True
 
 
 class DiagnosticQuestion(models.Model):
-    class Option(models.TextChoices):
-        A = "A", "Option A"
-        B = "B", "Option B"
-        C = "C", "Option C"
-        D = "D", "Option D"
+    class CorrectOption(models.TextChoices):
+        A = "A"
+        B = "B"
+        C = "C"
+        D = "D"
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     test = models.ForeignKey(
-        DiagnosticTest,
-        on_delete=models.CASCADE,
-        related_name="questions",
+        DiagnosticTest, on_delete=models.CASCADE, related_name="questions"
     )
     prompt_version = models.CharField(max_length=50)
-    seed = models.CharField(max_length=64)
+    seed = models.CharField(max_length=255)
     order = models.PositiveIntegerField()
     question_text = models.TextField()
-    option_a = models.TextField()
-    option_b = models.TextField()
-    option_c = models.TextField()
-    option_d = models.TextField()
-    correct_option = models.CharField(max_length=1, choices=Option.choices)
+    option_a = models.CharField(max_length=255)
+    option_b = models.CharField(max_length=255)
+    option_c = models.CharField(max_length=255)
+    option_d = models.CharField(max_length=255)
+    correct_option = models.CharField(max_length=1, choices=CorrectOption.choices)
     difficulty = models.CharField(max_length=20)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ("order",)
-        constraints = [
-            models.UniqueConstraint(
-                fields=("test", "order"), name="diagnostic_question_unique_order"
-            )
-        ]
+        ordering = ["order"]
+        unique_together = ("test", "order")
 
-    def __str__(self):
-        return f"{self.test_id} - Q{self.order}"
+
+class DiagnosticResponse(models.Model):
+    class SelectedOption(models.TextChoices):
+        A = "A"
+        B = "B"
+        C = "C"
+        D = "D"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    test = models.ForeignKey(
+        DiagnosticTest, on_delete=models.CASCADE, related_name="responses"
+    )
+    question = models.ForeignKey(
+        DiagnosticQuestion, on_delete=models.CASCADE, related_name="responses"
+    )
+    selected_option = models.CharField(max_length=1, choices=SelectedOption.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("test", "question")
 
 
 class AIRequestLog(models.Model):
@@ -148,25 +124,16 @@ class AIRequestLog(models.Model):
         SUCCESS = "success", "Success"
         FAILURE = "failure", "Failure"
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     test = models.ForeignKey(
-        DiagnosticTest,
-        on_delete=models.CASCADE,
-        related_name="ai_request_logs",
-        null=True,
-        blank=True,
+        DiagnosticTest, on_delete=models.SET_NULL, null=True, blank=True
     )
     prompt_version = models.CharField(max_length=50)
-    seed = models.CharField(max_length=64)
+    seed = models.CharField(max_length=255)
     provider = models.CharField(max_length=50)
-    status = models.CharField(max_length=20, choices=Status.choices)
+    status = models.CharField(max_length=10, choices=Status.choices)
     error_message = models.TextField(blank=True)
     prompt_excerpt = models.TextField()
     response_excerpt = models.TextField(blank=True)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ("-created_at",)
-
-    def __str__(self):
-        return f"{self.prompt_version} ({self.status})"
