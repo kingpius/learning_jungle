@@ -12,3 +12,6 @@ media/
 
 # OS
 .DS_Store
+
+# Local venv
+.venv/
