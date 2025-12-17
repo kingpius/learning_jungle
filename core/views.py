@@ -1,6 +1,10 @@
 from django.shortcuts import render
 
 
+def home(request):
+    return render(request, "core/home.html")
+
+
 def design_system(request):
     palette = [
         ("Canopy Emerald", "#1DA97A", "Primary actions, progress"),

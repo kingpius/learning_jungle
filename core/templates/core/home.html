@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Learning Jungle{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Learning Jungle</p>
+    <h1 class="dsj-hero">Welcome</h1>
+    <p class="dsj-copy">Parents: sign in to manage your child’s diagnostics.</p>
+  </header>
+
+  <section class="dsj-card" style="display:flex;flex-direction:column;gap:12px;">
+    <a class="dsj-cta" href="{% url 'accounts:login' %}" style="text-decoration:none;">Parent Login</a>
+    <a class="dsj-cta" href="{% url 'accounts:register' %}" style="text-decoration:none;background: var(--color-sky-explorer); box-shadow: 0 4px 12px rgba(44, 123, 234, 0.25);">Create Parent Account</a>
+    <a class="dsj-link-button" href="{% url 'core:design-system' %}">View design system</a>
+  </section>
+</div>
+{% endblock %}
+
