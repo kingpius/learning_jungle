@@ -1,15 +1,23 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Child Profile Form</title>
-</head>
-<body>
-    <h1>{{ view.object|default:'Create Child Profile' }}</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Save</button>
+{% extends "base.html" %}
+
+{% block title %}Child Profile{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Child Profile</p>
+    <h1 class="dsj-hero">{% if view.object %}Edit{% else %}Create{% endif %} Child</h1>
+    <p class="dsj-copy">Add your child so you can run diagnostics and track rewards.</p>
+  </header>
+
+  <section class="dsj-card">
+    <form method="post" style="display:flex;flex-direction:column;gap:12px;">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="dsj-cta" type="submit">Save</button>
     </form>
-    <a href="{% url 'children:list' %}">Back to list</a>
-</body>
-</html>
+    <a class="dsj-link-button" href="{% url 'children:list' %}" style="margin-top:12px;display:inline-block;">Back to list</a>
+  </section>
+</div>
+{% endblock %}
+

@@ -1,8 +1,24 @@
+from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import render
 
 
 def home(request):
     return render(request, "core/home.html")
+
+
+def health(request):
+    db_ok = False
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+            cursor.fetchone()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    status = "ok" if db_ok else "degraded"
+    return JsonResponse({"status": status, "db_ok": db_ok})
 
 
 def design_system(request):

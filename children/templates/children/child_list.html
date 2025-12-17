@@ -1,28 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Your Children</title>
-</head>
-<body>
-    <section>
-        <h1>Your Children</h1>
-        <p>MVP list view so parents can verify ownership quickly.</p>
+{% extends "base.html" %}
 
-        <a href="{% url 'children:create' %}">Add Child Profile</a>
+{% block title %}Your Children{% endblock %}
 
-        <ul>
-            {% for child in children %}
-                <li>
-                    <strong>{{ child.first_name }}</strong> —
-                    Age {{ child.age }}, Year {{ child.year_group }},
-                    School: {{ child.school_name }}
-                    <a href="{% url 'children:update' child.pk %}">Edit</a>
-                    <a href="{% url 'children:delete' child.pk %}">Delete</a>
-                </li>
-            {% empty %}
-                <li>No child profiles yet.</li>
-            {% endfor %}
-        </ul>
-    </section>
-</body>
-</html>
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Parents</p>
+    <h1 class="dsj-hero">Your Children</h1>
+    <p class="dsj-copy">Create and manage child profiles. Start a diagnostic from each child card.</p>
+  </header>
+
+  <section class="dsj-card" style="display:flex;flex-direction:column;gap:16px;">
+    <a class="dsj-cta" href="{% url 'children:create' %}" style="text-decoration:none;">Add Child Profile</a>
+
+    {% if children %}
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+        {% for child in children %}
+          <div class="dsj-card" style="border-top-color: var(--color-sky-explorer);">
+            <h2 class="dsj-hero" style="font-size:24px;margin-bottom:8px;">{{ child.first_name }}</h2>
+            <p class="dsj-copy" style="margin-bottom:12px;">
+              Age {{ child.age }}, Year {{ child.year_group }} · {{ child.school_name }}
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;">
+              <a class="dsj-link-button" href="{% url 'children:update' child.pk %}">Edit</a>
+              <a class="dsj-link-button" href="{% url 'children:delete' child.pk %}">Delete</a>
+              <a class="dsj-link-button" href="{% url 'assessments:diagnostic_start' child_id=child.pk %}">Start Diagnostic</a>
+              <a class="dsj-link-button" href="{% url 'rewards:create' child_id=child.pk %}">Treasure Chest</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="dsj-copy" style="margin-top:12px;">No child profiles yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

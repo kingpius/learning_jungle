@@ -1,6 +1,23 @@
-<h2>Parent Register</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Register</button>
-</form>
+{% extends "base.html" %}
+
+{% block title %}Parent Register{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Parents</p>
+    <h1 class="dsj-hero">Create an account</h1>
+    <p class="dsj-copy">Create a parent account to set up your child’s learning journey. You’ll choose a username and password.</p>
+  </header>
+
+  <section class="dsj-card">
+    <form method="post" style="display:flex;flex-direction:column;gap:12px;">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="dsj-cta" type="submit">Register</button>
+    </form>
+    <div class="dsj-wiggle-divider" aria-hidden="true" style="margin:24px 0;"></div>
+    <a class="dsj-link-button" href="{% url 'accounts:login' %}">Already have an account? Login</a>
+  </section>
+</div>
+{% endblock %}

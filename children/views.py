@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
@@ -23,7 +24,9 @@ class ChildCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.parent = self.request.user
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        messages.success(self.request, "Child profile created.")
+        return response
 
 
 class ChildUpdateView(LoginRequiredMixin, UpdateView):
@@ -35,6 +38,11 @@ class ChildUpdateView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return Child.objects.filter(parent=self.request.user)
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Child profile updated.")
+        return response
+
 
 class ChildDeleteView(LoginRequiredMixin, DeleteView):
     model = Child
@@ -43,3 +51,7 @@ class ChildDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_queryset(self):
         return Child.objects.filter(parent=self.request.user)
+
+    def form_valid(self, form):
+        messages.success(self.request, "Child profile deleted.")
+        return super().form_valid(form)

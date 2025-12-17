@@ -34,9 +34,13 @@ if not ON_HEROKU:
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY", "django-insecure-dev-only-do-not-use-in-production"
-)
+_env_secret_key = os.environ.get("SECRET_KEY")
+if _env_secret_key:
+    SECRET_KEY = _env_secret_key
+elif os.environ.get("DEBUG", "").lower() in {"1", "true", "yes", "on"} or "DYNO" not in os.environ:
+    SECRET_KEY = "dev-only-change-me"
+else:
+    raise RuntimeError("SECRET_KEY must be set when running in production.")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 if "DEBUG" in os.environ:

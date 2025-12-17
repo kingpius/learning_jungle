@@ -11,6 +11,31 @@
     <link rel="stylesheet" href="{% static 'core/design-system.css' %}">
 </head>
 <body>
+    <nav class="dsj-card" style="margin:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <a href="{% url 'core:home' %}" style="text-decoration:none;font-weight:700;color:var(--color-deep-violet);">Learning Jungle</a>
+            <a class="dsj-link-button" href="{% url 'children:list' %}">Children</a>
+            <a class="dsj-link-button" href="{% url 'core:design-system' %}">Design System</a>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            {% if request.user.is_authenticated %}
+                <span class="dsj-copy" style="font-size:14px;">Signed in as {{ request.user.username }}</span>
+                <a class="dsj-link-button" href="{% url 'accounts:logout' %}">Logout</a>
+            {% else %}
+                <a class="dsj-link-button" href="{% url 'accounts:login' %}">Login</a>
+                <a class="dsj-link-button" href="{% url 'accounts:register' %}">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% if messages %}
+      <div class="dsj-shell" style="padding-top:0;">
+        {% for message in messages %}
+          <div class="dsj-alert" style="margin: 0 24px 12px;">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     {% block content %}{% endblock %}
 </body>
 </html>

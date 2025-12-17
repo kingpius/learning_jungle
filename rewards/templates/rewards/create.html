@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Treasure Chest{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Rewards</p>
+    <h1 class="dsj-hero">Create a Treasure Chest</h1>
+    <p class="dsj-copy">Set a small reward for {{ child.first_name }} (value up to £5.00).</p>
+  </header>
+
+  <section class="dsj-card">
+    <form method="post" style="display:flex;flex-direction:column;gap:12px;">
+      {% csrf_token %}
+
+      <label class="dsj-copy" style="font-weight:600;">Reward description</label>
+      <input name="reward_description" required style="padding:12px;border-radius:8px;border:1px solid rgba(0,0,0,0.15);" />
+
+      <label class="dsj-copy" style="font-weight:600;">Reward value (£)</label>
+      <input name="reward_value" type="number" step="0.01" min="0" max="5" required style="padding:12px;border-radius:8px;border:1px solid rgba(0,0,0,0.15);" />
+
+      <button class="dsj-cta" type="submit">Create Treasure Chest</button>
+    </form>
+
+    <a class="dsj-link-button" href="{% url 'children:list' %}" style="margin-top:12px;display:inline-block;">Back to children</a>
+  </section>
+</div>
+{% endblock %}
+

@@ -4,5 +4,5 @@ from .views import create_treasure_chest
 app_name = "rewards"
 
 urlpatterns = [
-    path("create/<int:child_id>/", create_treasure_chest, name="create"),
+    path("create/<uuid:child_id>/", create_treasure_chest, name="create"),
 ]

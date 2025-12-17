@@ -1,15 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Delete Child Profile</title>
-</head>
-<body>
-    <h1>Delete {{ object.first_name }}?</h1>
-    <p>This permanently removes the child profile.</p>
+{% extends "base.html" %}
+
+{% block title %}Delete Child Profile{% endblock %}
+
+{% block content %}
+<div class="dsj-shell">
+  <header class="dsj-shell__header">
+    <p class="dsj-eyebrow">Child Profile</p>
+    <h1 class="dsj-hero">Delete {{ object.first_name }}?</h1>
+    <p class="dsj-copy">This permanently removes the child profile.</p>
+  </header>
+
+  <section class="dsj-card" style="display:flex;flex-direction:column;gap:12px;">
     <form method="post">
-        {% csrf_token %}
-        <button type="submit">Yes, delete</button>
-        <a href="{% url 'children:list' %}">Cancel</a>
+      {% csrf_token %}
+      <button class="dsj-cta" type="submit" style="background:#b02a37;box-shadow:none;">Yes, delete</button>
     </form>
-</body>
-</html>
+    <a class="dsj-link-button" href="{% url 'children:list' %}">Cancel</a>
+  </section>
+</div>
+{% endblock %}
+
