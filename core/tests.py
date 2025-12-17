@@ -16,3 +16,11 @@ class CoreSmokeTests(TestCase):
         self.assertIn("status", payload)
         self.assertIn("db_ok", payload)
 
+    def test_homepage_redirects_when_authenticated(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        User.objects.create_user(username="parent", password="pass1234")
+        self.client.login(username="parent", password="pass1234")
+        response = self.client.get(reverse("core:home"))
+        self.assertRedirects(response, reverse("children:list"))
