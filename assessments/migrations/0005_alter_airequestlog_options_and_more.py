@@ -6,6 +6,144 @@ import django.db.models.deletion
 import uuid
 
 
+def _pg_column_type(cursor, *, table: str, column: str):
+    cursor.execute(
+        """
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_name = %s AND column_name = %s
+        """,
+        [table, column],
+    )
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+def _pg_constraint_exists(cursor, *, table: str, constraint_name: str) -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        WHERE t.relname = %s AND c.conname = %s
+        """,
+        [table, constraint_name],
+    )
+    return cursor.fetchone() is not None
+
+
+def convert_bigint_pks_to_uuid(apps, schema_editor):
+    """
+    Safely migrates bigint primary keys to UUIDs on Postgres for early tables that
+    were created with BigAutoField. This avoids Postgres failing with:
+    "cannot cast type bigint to uuid" during AlterField.
+    """
+    if schema_editor.connection.vendor != "postgresql":
+        return
+
+    with schema_editor.connection.cursor() as cursor:
+        schema_editor.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
+
+        # DiagnosticQuestion.id (bigint -> uuid) + dependent DiagnosticResponse.question_id.
+        if _pg_column_type(cursor, table="assessments_diagnosticquestion", column="id") == "bigint":
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticquestion ADD COLUMN IF NOT EXISTS id_uuid uuid;"
+            )
+            schema_editor.execute(
+                "UPDATE assessments_diagnosticquestion SET id_uuid = gen_random_uuid() WHERE id_uuid IS NULL;"
+            )
+
+            # Add new uuid FK column and backfill from mapping.
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse ADD COLUMN IF NOT EXISTS question_uuid uuid;"
+            )
+            schema_editor.execute(
+                """
+                UPDATE assessments_diagnosticresponse r
+                SET question_uuid = q.id_uuid
+                FROM assessments_diagnosticquestion q
+                WHERE q.id = r.question_id
+                """
+            )
+
+            # Drop FK on old bigint column before replacing it.
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse DROP CONSTRAINT IF EXISTS assessments_diagnosticresponse_question_id_fkey;"
+            )
+
+            # Replace question_id column with the uuid version.
+            schema_editor.execute("ALTER TABLE assessments_diagnosticresponse DROP COLUMN question_id;")
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse RENAME COLUMN question_uuid TO question_id;"
+            )
+
+            # Recreate unique constraint for (test_id, question_id) if it was dropped.
+            unique_name = "assessments_diagnosticresponse_test_id_question_id_uniq"
+            if not _pg_constraint_exists(cursor, table="assessments_diagnosticresponse", constraint_name=unique_name):
+                schema_editor.execute(
+                    f"ALTER TABLE assessments_diagnosticresponse ADD CONSTRAINT {unique_name} UNIQUE (test_id, question_id);"
+                )
+
+            # Swap primary key column on diagnosticquestion.
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticquestion DROP CONSTRAINT IF EXISTS assessments_diagnosticquestion_pkey;"
+            )
+            schema_editor.execute("ALTER TABLE assessments_diagnosticquestion DROP COLUMN id;")
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticquestion RENAME COLUMN id_uuid TO id;"
+            )
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticquestion ADD PRIMARY KEY (id);"
+            )
+
+            # Re-add FK constraint to new UUID PK.
+            schema_editor.execute(
+                """
+                ALTER TABLE assessments_diagnosticresponse
+                ADD CONSTRAINT assessments_diagnosticresponse_question_id_fkey
+                FOREIGN KEY (question_id)
+                REFERENCES assessments_diagnosticquestion(id)
+                DEFERRABLE INITIALLY DEFERRED;
+                """
+            )
+
+        # DiagnosticResponse.id (bigint -> uuid)
+        if _pg_column_type(cursor, table="assessments_diagnosticresponse", column="id") == "bigint":
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse ADD COLUMN IF NOT EXISTS id_uuid uuid;"
+            )
+            schema_editor.execute(
+                "UPDATE assessments_diagnosticresponse SET id_uuid = gen_random_uuid() WHERE id_uuid IS NULL;"
+            )
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse DROP CONSTRAINT IF EXISTS assessments_diagnosticresponse_pkey;"
+            )
+            schema_editor.execute("ALTER TABLE assessments_diagnosticresponse DROP COLUMN id;")
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse RENAME COLUMN id_uuid TO id;"
+            )
+            schema_editor.execute(
+                "ALTER TABLE assessments_diagnosticresponse ADD PRIMARY KEY (id);"
+            )
+
+        # AIRequestLog.id (bigint -> uuid)
+        if _pg_column_type(cursor, table="assessments_airequestlog", column="id") == "bigint":
+            schema_editor.execute(
+                "ALTER TABLE assessments_airequestlog ADD COLUMN IF NOT EXISTS id_uuid uuid;"
+            )
+            schema_editor.execute(
+                "UPDATE assessments_airequestlog SET id_uuid = gen_random_uuid() WHERE id_uuid IS NULL;"
+            )
+            schema_editor.execute(
+                "ALTER TABLE assessments_airequestlog DROP CONSTRAINT IF EXISTS assessments_airequestlog_pkey;"
+            )
+            schema_editor.execute("ALTER TABLE assessments_airequestlog DROP COLUMN id;")
+            schema_editor.execute(
+                "ALTER TABLE assessments_airequestlog RENAME COLUMN id_uuid TO id;"
+            )
+            schema_editor.execute("ALTER TABLE assessments_airequestlog ADD PRIMARY KEY (id);")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,6 +151,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(convert_bigint_pks_to_uuid, reverse_code=migrations.RunPython.noop),
         migrations.AlterModelOptions(
             name='airequestlog',
             options={},
