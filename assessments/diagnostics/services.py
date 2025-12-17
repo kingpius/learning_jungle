@@ -88,6 +88,8 @@ def ensure_maths_questions_for_test(
             error_message=str(exc),
             **log_kwargs,
         )
+        if getattr(settings, "AI_FALLBACK_MODE", "error") == "stub":
+            return _persist_stub_questions(test, question_total)
         raise DiagnosticGenerationError(str(exc)) from exc
 
 
@@ -115,6 +117,45 @@ def _persist_questions(
 
         created = DiagnosticQuestion.objects.bulk_create(payload)
         return created
+
+
+def _persist_stub_questions(test: DiagnosticTest, total: int) -> Sequence[DiagnosticQuestion]:
+    """
+    Safe fallback for production environments without AI credentials.
+    Generates deterministic, simple Maths MCQs so the diagnostic flow does not crash.
+    """
+    stubs = [
+        ("2 + 3 = ?", ["4", "5", "6", "7"], "B"),
+        ("10 - 4 = ?", ["4", "5", "6", "7"], "C"),
+        ("6 + 7 = ?", ["11", "12", "13", "14"], "C"),
+        ("9 - 3 = ?", ["5", "6", "7", "8"], "B"),
+        ("3 + 8 = ?", ["10", "11", "12", "13"], "B"),
+        ("12 - 5 = ?", ["6", "7", "8", "9"], "B"),
+        ("4 + 4 = ?", ["6", "7", "8", "9"], "C"),
+        ("15 - 9 = ?", ["5", "6", "7", "8"], "B"),
+        ("7 + 5 = ?", ["11", "12", "13", "14"], "B"),
+        ("8 - 2 = ?", ["5", "6", "7", "8"], "B"),
+    ]
+    payload = []
+    for index in range(1, total + 1):
+        question_text, options, correct = stubs[(index - 1) % len(stubs)]
+        payload.append(
+            DiagnosticQuestion(
+                test=test,
+                prompt_version="stub",
+                seed="stub",
+                order=index,
+                question_text=question_text,
+                option_a=options[0],
+                option_b=options[1],
+                option_c=options[2],
+                option_d=options[3],
+                correct_option=correct,
+                difficulty="easy",
+            )
+        )
+    with transaction.atomic():
+        return DiagnosticQuestion.objects.bulk_create(payload)
 
 
 def create_or_resume_maths_test(child) -> DiagnosticTest:
